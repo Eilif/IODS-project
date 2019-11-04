@@ -1,13 +1,16 @@
-## Header 2 Course Diary, Chapter 1
-### Header 3 Elizabeth Oakes
+## Course Diary, Chapter 1
 
-Link to [GitHub repository.](https://github.com/Eilif/IODS-project) 
+### Elizabeth Oakes
+
+<https://github.com/Eilif/IODS-project> 
 
 My second Ph.D. supervisor, **Dr. Turo Hiltunen**, recommended the course to me. I come from an English philology background, but in my research, I take a computational approach to style in New Wave science fiction. The research generates a moderate amount of numerical data. 
 
 From this course, I hope to gain: 
-*a clear idea of ways I can effectively make the data open access
-*an understanding of basic statistical processes and tools 
+
+1. a clear idea of ways I can effectively make the data open access
+
+2. an understanding of basic statistical processes and tools 
 
 Statistics aren't necessary for my core line of inquiry, but I suspect having the tools to hand would enable asking some interesting questions when comparing data from two or more text types within a corpus.
 
