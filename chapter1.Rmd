@@ -1,4 +1,16 @@
+## Header 2 Course Diary, Chapter 1
+### Header 3 Elizabeth Oakes
 
-# About the project
+Link to [GitHub repository.](https://github.com/Eilif/IODS-project) 
 
-*Write a short description about the course and add a link to your GitHub repository here. This is an R Markdown (.Rmd) file so you can use R Markdown syntax.*
+My second Ph.D. supervisor, **Dr. Turo Hiltunen**, recommended the course to me. I come from an English philology background, but in my research, I take a computational approach to style in New Wave science fiction. The research generates a moderate amount of numerical data. 
+
+From this course, I hope to gain: 
+*a clear idea of ways I can effectively make the data open access
+*an understanding of basic statistical processes and tools 
+
+Statistics aren't necessary for my core line of inquiry, but I suspect having the tools to hand would enable asking some interesting questions when comparing data from two or more text types within a corpus.
+
+Two years ago during my master's studies, I took a course on statistics for linguists with R. I haven't really played with R since, so I am rusty. I do remember basic concepts from statistics and the details of common tests like T-test and Chi-squared. I suppose where I struggle is in understanding how to apply these in a relevant way to my data. If I remember, T-test, for example, needs an *expected* value. But what would be the expected frequency of prepositions of movement in a fiction text? Frankly, answers I've gotten to questions like that (or cooked up myself) tend to sound more than a little hand-wavey.
+
+I'm not sure this course can directly help me with this issue, but I'm hoping it will give me the perspective to think about it more clearly.
