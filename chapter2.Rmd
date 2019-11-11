@@ -1,8 +1,8 @@
-# Course Diary, Chapter 2
+## Course Diary, Chapter 2
 
-## Analyzing data and making it pretty
+### Analyzing data and making it pretty
 
-### Elizabeth Oakes, 11.11.2019
+Elizabeth Oakes, 11.11.2019
 
 This analysis looks at data that characterizes the learning of a set of students. There are seven variables related to learning (gender, age, attitude, deep learning, strategic learning, surface learning, and points) and 166 observations of these variables.
 
