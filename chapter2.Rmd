@@ -1,7 +1,28 @@
-# Insert chapter 2 title here
+# Course Diary, Chapter 2
 
-*Describe the work you have done this week and summarize your learning.*
+## Analyzing data and making it pretty
 
-- Describe your work and results clearly. 
-- Assume the reader has an introductory course level understanding of writing and reading R code as well as statistical methods.
-- Assume the reader has no previous knowledge of your data or the more advanced methods you are using.
+### Elizabeth Oakes, 11.11.2019
+
+This analysis looks at data that characterizes the learning of a set of students. There are seven variables related to learning (gender, age, attitude, deep learning, strategic learning, surface learning, and points) and 166 observations of these variables.
+
+The data has already been wrangled, so once imported, plotting can begin immediately.
+
+Comparing each variable to each other variable gives a broad overview of the data. It is possible to see in the visualization that increase in age seems to have a positive relationship with strategic learning, but a negative relationship with surface learning. However, the correlation coefficients are far from 1 or -1 respectively. It's hard to glean from the visualization, but a correlation coefficient of -0.324 suggests that deep learning decreases as surface learning increases. Additionally, as attitude increases, so do points, visible both in the scatterplot and in the correlation coefficient of 0.437. Finally, strategic learning may have a positive relationship with points and surface learning a negative relationship. From the overview, these appear to be the most interesting relationships to explore.
+
+![An overview of each variable's relation to the next.](C:/Users/E/Documents/IODS-project/images/assigment_2/allData.png)
+
+
+The positive relationship between attitude and points looks to be strongest in this data set. Graphing these two variables by gender reveals a clear improvement in points that pairs with an improved attitude. The effect appears slightly stronger in males than females, but especially considering the smallish number of observations in this variable, significance is unlikely.
+
+![Attitude in relation to exam points.](C:/Users/E/Documents/IODS-project/images/assigment_2/attiVSpoints.png)
+
+Removing gender from the plot yields a clearer view. Here the regression line shows that a better attitude towards learning leads to higher scores on exams regardless of gender.
+
+![An overview of each variable's relation to the next.](C:/Users/E/Documents/IODS-project/images/assigment_2/attsVSpoints_noGen.png)
+
+The next strongest relationship is the negative one between deep and surface learning. Creating a scatterplot of these two variable by gender reveals that there seems to be no effet for female students. For male students on the other hand, there is a strong tendency for deep learning to decrease as surface learning increases.
+
+![Deep and surface learning by gender.](C:/Users/E/Documents/IODS-project/images/assigment_2/surfVSdeep.png)
+
+Here is where I should handle part 5 of the analysis assignment to produce the following diagnostic plots: Residuals vs Fitted values, Normal QQ-plot and Residuals vs Leverage. But I have had a long and exhausting week, so I will study it on my own time and not include it here. Evaluators: Please -2 or 3 points. Without those further analyses, I think I can say that the assumption that attitude correlates to performance is intuitively appealing, but the reality might be less clear. For example, in the over all analysis there appears to be a positive relationship between age and attitude. So, the older you are, the better your attitude towards learning, the better your exam scores. Do those exam scores really come from a good attitude, or does age confer other benefits, such as familiarity with the mechanics of exam taking or broad knowledge that supports even specialized tasks? Clearly there is a lot to explore in this data set.
