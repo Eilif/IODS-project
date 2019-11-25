@@ -1,0 +1,172 @@
+---
+title: "Chapter 4"
+author: "Elizabeth Oakes"
+date: "25 11 2019"
+output: html_document
+---
+
+# Clustering Exercises
+
+### Step 2
+
+In exercise four I will do cluster analysis on the Boston dataset looking particularly at the relationship between crime and various socio-economic indicators. First, an overview of the data.
+
+```{r}
+library(MASS)
+data("Boston")
+dim(Boston)
+str(Boston)
+```
+
+Crim is the per capita crime rate by town within Boston. Indus tells us the proportion of acres given over to non retail businesses per town; tax the property tax rate. Dis describes the accessibility of five employment centers, and black the proportion of black people by town. Lstat gives the percentage of lower status population. This should give a general picture of the data, and I will describe variables more precisely at need.
+
+### Step 3
+
+Now, let's see one tabular two graphical summaries of the data.
+
+```{r}
+library(corrplot)
+library(magrittr)
+#summary table
+summary(Boston)
+#visualize variables and their relationships
+pairs(Boston)
+#same with correlations
+correlations <- cor(Boston) %>% round(digits = 2)
+corrplot(correlations, method="circle", type = "upper", cl.pos = "b", tl.pos = "d", tl.cex = 0.6)
+
+```
+
+It seems that crime (variable crim) correlates most strongly with proximity to a radial highway (rad) and higher property tax areas (tax). This suggests to me that a high proportion of the crimes are burglary. To a lesser degree, crime also seems to correlate to higher proportions of low status individuals (lstat) in a town. On the other hand, crime has a negative correlation with higher percentatges of black people in a town population (black) and with shorter distances to employment centers (dis).
+
+Other correlations of note: Lower status populations correlate with poor air quality (nox) and high percentage of industtry in the town (indus). They have a negative correlation with the variable rm, meaning their homes are smaller, and with dis, indicating that they live further from employment centers. Lower status also has a negative correlation with black, and interestingly, these two variables show opposite correlation patterns with the other variables. So Boston's black population is geneally living closer to employment in areas with less industry, less crime, and better air quality. This suggests to me that the towns included in the data are home to middle class African American populations, and the working class or impovrished populations are composed of other races. Based on class, conditions look about what can be expected of an American city.
+
+### Step 4
+Next, I will standardize and scale the data. Then let's look at a tabular summary and compare to the original dataset.
+
+```{r}
+#scale the data and summarize
+boston_scaled <- scale(Boston)
+boston_scaled <- as.data.frame(boston_scaled)
+summary(boston_scaled)
+
+```
+
+The mean of each variable is set to zero and the other values scaled to that. 
+
+Since I am doing cluster analysis, I need to work with a categorical variable. It is necessary to change crim from a numerical to a categorical variable. Let's make the change and have a look at the new variable, crime.
+
+```{r}
+#make crime a categorical variable
+bins <- quantile(boston_scaled$crim)
+crime <- cut(boston_scaled$crim, breaks = bins, include.lowest = TRUE, label = c("low", "med_low", "med_high", "high"))
+
+#remove original crime variable and replace with new categorical one
+boston_scaled <- dplyr::select(boston_scaled, -crim)
+boston_scaled <- data.frame(boston_scaled, crime)
+
+#print table of your new variable
+table(crime)
+```
+
+The data is now in shape to make training and testing sets and begin cluster analysis. I use a randomized sampling of 80% of the rows in the scaled data to create a training dataset and place the remaining 20% minus the crime variable into a test dataset.
+
+```{r}
+#create a training set with 80% of the data and a test set with the rest
+n <- nrow(boston_scaled)
+ind <- sample(n,  size = n * 0.8)
+train <- boston_scaled[ind,]
+test <- boston_scaled[-ind,]
+correct_classes <- test$crime
+test <- dplyr::select(test, -crime)
+```
+### Step 5
+
+Finally, I can fit a linear discriminant analysis on the training set. In this analysis, crime is the target variable and all others function as predictors. I will also plot the results on the training set.
+
+```{r}
+#fit the linear discriminant analysis on the training data and plot
+lda.fit <- lda(crime ~ ., data = train)
+lda.arrows <- function(x, myscale = 1, arrow_heads = 0.1, color = "red", tex = 0.75, choices = c(1,2)){
+  heads <- coef(x)
+  arrows(x0 = 0, y0 = 0, 
+         x1 = myscale * heads[,choices[1]], 
+         y1 = myscale * heads[,choices[2]], col=color, length = arrow_heads)
+  text(myscale * heads[,choices], labels = row.names(heads), 
+       cex = tex, col=color, pos=3)
+}
+
+classes <- as.numeric(train$crime)
+
+plot(lda.fit, col = classes, pch = classes, dimen = 2)
+lda.arrows(lda.fit, myscale = 1)
+```
+
+### Step 6
+
+I have previously saved the crime categories and removed them from the test set in step 4, so I can go right to using the LDA model to predict classes on the test set. After running the prediciton, I cross tabulate the results with the seprately saved crime categories.
+
+```{r}
+lda.pred <- predict(lda.fit, newdata = test)
+table(correct = correct_classes, predicted = lda.pred$class)
+```
+
+The prediction is a little fuzzy, particularly for the med_low and med_high values, but the LDA model does seem to predict high and low with decent accuracy.
+
+### Step 7
+
+With LDA finished, I will move on to perform a K-means analysis. To begin, I reload the Boston dataset and scale it again.
+
+```{r}
+data("Boston")
+boston_scaled <- scale(Boston)
+boston_scaled <- as.data.frame(boston_scaled)
+```
+
+Then, I will calculate the distances between observations using two methods, Euclidian and Manhattan.
+
+```{r}
+#calculate the distance between variables in two ways, euclidian and manhattan
+dist_eu <- dist(boston_scaled)
+summary(dist_eu)
+
+dist_man <- dist(boston_scaled, method = "manhattan")
+summary(dist_man)
+```
+
+After I can do K-means analysis and visualize the results. I preform the analysis on only five variables to see how the clustering will look. Getting a clear view at first is important since it may be necessary to adjust the clusters.
+
+```{r}
+km <-kmeans(boston_scaled, centers = 3)
+pairs(boston_scaled[6:10], col = km$cluster)
+```
+
+In this analysis, I set the clusters to 3, and it looks a little messy. What would be the ideal number of clusters? We can test and see.
+
+```{r}
+set.seed(123)
+
+# determine the number of clusters
+k_max <- 10
+
+# calculate the total within sum of squares
+twcss <- sapply(1:k_max, function(k){kmeans(boston_scaled, k)$tot.withinss})
+
+# visualize the results
+library(ggplot2)
+qplot(x = 1:k_max, y = twcss, geom = 'line')
+```
+
+Actually, the graph indicates that using two clusters might yield clearer results on this dataset. Let's try the K-means analysis again with two clusters. First I do the analysis on a slice of five variables for easy viewing, then I apply it to the whole dataset.
+
+```{r}
+# K-means clustering on five variables
+km <-kmeans(boston_scaled, centers = 2)
+pairs(boston_scaled[6:10], col = km$cluster)
+
+# k-means clustering on whole dataset
+km <-kmeans(boston_scaled, centers = 2)
+pairs(boston_scaled, col = km$cluster)
+```
+
+It looks like there's a cluster of crime in semi-industrial areas rather than purely residential or industrial. It's also clear from lstat x rm and lstat x medv that towns with more low status people have worse housing conditions and also, from lstat x crime, higher crime.

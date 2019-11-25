@@ -1,0 +1,223 @@
+---
+Title: "Chapter 3, Logistic regression"
+---
+Author: Faranak Halali
+
+# Week 3: Logistic Regression
+This week I used the data on students performance in math class and portugese language class. I started with data wrangling and then continued with data analysis. This week's analysis is logistic regression, which is used to study the odds of success in a binary dependent variable based on explanatory variables.
+#Reading data and exploring columns
+```{r}
+alc <- read.csv("~/IODS-project/Data/alc.csv", header=TRUE, sep=";")
+colnames(alc)
+```
+**Data explanation**: This data deals with students' (15-22 years of age) performance in two distinct subjects: Mathematics (mat) and Portuguese language (por) in two different schools. Students answered questions on their demographic information, e.g., school name, age, sex, family size, and travel time between home and school as well as their grades in mathematics and Portugese language in three time periods (G1, G2, G3). One important outcome of this study is the amount of alcohol use among these students and how it correlates with their school performance. Their weekday and weekend alcohol consumption were measured on a 5-point scale (1 - very low to 5 - very high).
+
+# Choose 4 variables for potential hypotheses regarding their relationships with alcohol use
+My variables and hypotheses are: 1) sex: boys are more likely to use more alcohol. 2) absences from school: Those who have higher number of absent days in school are more likely to use more alcohol. 3) Number of go outs: Those with higher number of going out are more likely to use more alcohol. 4) family relationships: Those who experience high-quality relationship with other family members are less likely to use more alcohol.
+
+#Explore chosen variables
+```{r}
+library(dplyr); library(ggplot2)
+alc %>% group_by (sex, high_use) %>% summarise(count = n())
+```
+
+**Interpretation**: It seems that higher proportion of men have high alcohol use (72/112=64%) compared to women (42/156=27%). It does not say whether this difference is significant or not. My first hypothesis is confirmed in this data exploration.
+
+```{r}
+library(ggplot2)
+g1 <- ggplot(alc, aes(x = high_use, y = absences))
+g2 <- g1 + geom_boxplot() + ggtitle("Student absences by alcohol consumption")
+g2
+```
+
+**Interpretation**: The boxplot shows that high alcohol use is more likely among those with higher mean of absences from school. It does not say whether this difference is significant or not. My second hypothesis is confirmed in this data exploration.
+
+```{r}
+g2 <- ggplot(alc, aes(x = high_use, y = goout))
+g3 <- g2 + geom_boxplot() + ggtitle("Student goouts by alcohol consumption")
+g3
+```
+
+**Interpretation**: Those who go out more frequently are more likely to use more alcohol. It does not say whether this difference is significant or not. My third hypothesis is confirmed in this data exploration.
+
+```{r}
+g4 <- ggplot(alc, aes(x = high_use, y = famrel))
+g5 <- g4 + geom_boxplot(aes(fill = famrel)) + ggtitle("Student family relations by alcohol consumption")
+g5
+```
+
+**Interpretation**: This boxplot shows that those who reported higher-quality family relationships are less likely to use higher amounts of alcohol. It does not say whether this difference is significant or not. My fourth hypothesis is confirmed in this data exploration.
+
+#Logistic regression model
+```{r}
+m <- glm(high_use ~ sex  + absences + goout + famrel, data = alc, family = "binomial")
+summary(m)
+coef(m)
+OR <- coef(m) %>% exp
+confint(m)
+CI <- confint(m) %>% exp
+cbind(OR, CI)
+```
+
+**Interpretation**: The fitted logistic regression model indicates that all chosen variables, i.e., sex, absences, going out, and family relationships are significant explanators of alcohol use among the students. All chosen variables have a p-value of <0.001 except for the family relations which has a p-values of <0.01. According to Odds Ratios (ORs) we can say that: 1) male students are 2.7 times more likely (because OR is > 1) to have higher alcohol consumption compared to female students (p < 0.001). This confirms my hypothesis number 1. The CI 95% for the variable sex indicates that in 95% of the trials with this data the OR would be between 1.66 and 4.61. 2) For one unit increase in the number of absences, the odds of using more alcohol increases 1.08 times (OR is > 1, p < 0.001). This confirms my hypothesis number 2. The CI 95% for the variable absences indicates that in 95% of the trials with this data the OR would be between 1.04 and 1.13 which is a narrow interval. 3) For one unit increase in the number of going out episodes, the odds of using more alcohol increases 2.15 times (OR is > 1, p < 0.001). This confirms my hypothesis number 3. The CI 95% for the variable absences indicates that in 95% of the trials with this data the OR would be between 1.70 and 2.76. 4) For one unit increase in the quality of family relationships, the odds of using more alcohol decreases 0.67 times (OR is < 1, p < 0.01). This confirms my hypothesis number 4. The CI 95% for the variable family relations indicates that in 95% of the trials with this data the OR would be between 0.51 and 0.88.
+
+#Predictive power of the model
+```{r}
+probabilities <- predict(m, type = "response")
+alc <- mutate(alc, probability = probabilities)
+alc <- mutate(alc, prediction = probability > 0.5)
+table(high_use = alc$high_use, prediction = alc$prediction)
+```
+
+**Interpretation**: Comparing the predicted values and actual values, we can see that out of 318 false predictions (low alcohol use) 254 were actually false (about 80%). Also, out of 64 true predictions (high alcohol use), 50 were actually true (78%).These figures indicate a predictive power of the fitted logistic regression model with about 80% accuracy.
+
+#Visualizing predictive power of the model
+```{r}
+g <- ggplot(alc, aes(x = probability, y = high_use, col = prediction))
+g1 <- g + geom_point()
+g1
+```
+
+**Interpretation**: Also according to this plot, probability of successful classification seems to be good but not perfect because there are also wrong classifications by the model.
+
+#Bonus question: cross-validation
+```{r}
+loss_func <- function(class, prob) {
+  n_wrong <- abs(class - prob) > 0.5
+  mean(n_wrong)
+}
+loss_func(class = alc$high_use, prob = alc$probability)
+library(boot)
+cv <- cv.glm(data = alc, cost = loss_func, glmfit = m, K = 10)
+cv$delta[1]
+```
+
+**Interpretation**: Cross-validation is used to test the accuracy of the predictions of the model on independent unseen data. Data is splitted into two sets: training and test. Training dataset is the actual dataset that we use to train the model. The test dataset is the data used to provide an unbiased evaluation of a final model fit on the training dataset. We can perform multipple rounds of cross-validation (by splitting the dataset into K equal partitions and each time use one part as training data and other parts as test data, this process repeats for all parts) and then calculate the average predictive power for the model. This way we can reduce the variability because all observations are used for both training and testing. In the 10-fold cross-validation, the average number of wrong predictions (prediction errors) is 0.20, i.e., on average, the model wrongly predicts 20 times out of 100 times. In other words, prediction accuracy of the model is 80%. Since the model classification accuracy is 80% when predicting unseen data, so the model seems to have a good predictive power. This model has a lower prediction error (0.20) Compared to the prediction error calculated in the datacamp exercise, which had a prediction error of 0.26.
+
+#Super bonus question
+```{r}
+m1 <- glm(high_use ~ sex  + absences + goout + famrel + failures + Medu + Fedu + freetime + romantic + guardian, data = alc, family = "binomial")
+loss_func <- function(class, prob) {
+  n_wrong <- abs(class - prob) > 0.5
+  mean(n_wrong)
+}
+loss_func(class = alc$high_use, prob = alc$probability)
+library(boot)
+cv <- cv.glm(data = alc, cost = loss_func, glmfit = m1, K = 10)
+cv$delta[1]
+```
+
+**Interpretation**: In this model with 10 predictors, the results of 10-fold cross-validation shows that the average prediction error of this model is 0.219. Let's continue with other models!
+
+```{r}
+m2 <- glm(high_use ~ sex  + absences + goout + famrel + failures + Medu + Fedu + freetime , data = alc, family = "binomial")
+loss_func <- function(class, prob) {
+  n_wrong <- abs(class - prob) > 0.5
+  mean(n_wrong)
+}
+loss_func(class = alc$high_use, prob = alc$probability)
+library(boot)
+cv <- cv.glm(data = alc, cost = loss_func, glmfit = m2, K = 10)
+cv$delta[1]
+```
+
+**Interpretation**: In this model with 8 predictors the results of 10-fold cross-validation shows that the average prediction error of this model is 0.225.
+
+```{r}
+m3 <- glm(high_use ~ sex  + absences + goout + famrel + failures + Medu + Fedu , data = alc, family = "binomial")
+loss_func <- function(class, prob) {
+  n_wrong <- abs(class - prob) > 0.5
+  mean(n_wrong)
+}
+loss_func(class = alc$high_use, prob = alc$probability)
+library(boot)
+cv <- cv.glm(data = alc, cost = loss_func, glmfit = m3, K = 10)
+cv$delta[1]
+```
+**Interpretation**: In this model with 7 predictors, the results of 10-fold cross-validation shows that the average prediction error of this model is 0.225 similar to m2 model.
+
+```{r}
+m4 <- glm(high_use ~ sex  + absences + goout + famrel + failures + Medu , data = alc, family = "binomial")
+loss_func <- function(class, prob) {
+  n_wrong <- abs(class - prob) > 0.5
+  mean(n_wrong)
+}
+loss_func(class = alc$high_use, prob = alc$probability)
+library(boot)
+cv <- cv.glm(data = alc, cost = loss_func, glmfit = m4, K = 10)
+cv$delta[1]
+```
+**Interpretation**: In this model with 6 predictors, the results of 10-fold cross-validation shows that the average prediction error of this model is 0.230.
+
+```{r}
+m5 <- glm(high_use ~ sex  + absences + goout + famrel + failures , data = alc, family = "binomial")
+loss_func <- function(class, prob) {
+  n_wrong <- abs(class - prob) > 0.5
+  mean(n_wrong)
+}
+loss_func(class = alc$high_use, prob = alc$probability)
+library(boot)
+cv <- cv.glm(data = alc, cost = loss_func, glmfit = m5, K = 10)
+cv$delta[1]
+```
+**Interpretation**: In this model with 5 predictors, the results of 10-fold cross-validation shows that the average prediction error of this model is 0.214.
+
+```{r}
+m6 <- glm(high_use ~ sex  + absences + goout + famrel , data = alc, family = "binomial")
+loss_func <- function(class, prob) {
+  n_wrong <- abs(class - prob) > 0.5
+  mean(n_wrong)
+}
+loss_func(class = alc$high_use, prob = alc$probability)
+library(boot)
+cv <- cv.glm(data = alc, cost = loss_func, glmfit = m6, K = 10)
+cv$delta[1]
+```
+**Interpretation**: In this model with 4 predictors, the results of 10-fold cross-validation shows that the average prediction error of this model is 0.214. These 4 predictors are the same ones entered into the original regression model for this week's exercise. I had calculated its average predictions error as 0.204 and now it is slightly different (0.214). However, I do not think this difference would be a crucial problem.
+
+```{r}
+m7 <- glm(high_use ~ sex  + absences + goout , data = alc, family = "binomial")
+loss_func <- function(class, prob) {
+  n_wrong <- abs(class - prob) > 0.5
+  mean(n_wrong)
+}
+loss_func(class = alc$high_use, prob = alc$probability)
+library(boot)
+cv <- cv.glm(data = alc, cost = loss_func, glmfit = m7, K = 10)
+cv$delta[1]
+```
+**Interpretation**: In this model with 3 predictors, the results of 10-fold cross-validation shows that the average prediction error of this model is 0.219.
+
+```{r}
+m8 <- glm(high_use ~ sex  + absences , data = alc, family = "binomial")
+loss_func <- function(class, prob) {
+  n_wrong <- abs(class - prob) > 0.5
+  mean(n_wrong)
+}
+loss_func(class = alc$high_use, prob = alc$probability)
+library(boot)
+cv <- cv.glm(data = alc, cost = loss_func, glmfit = m8, K = 10)
+cv$delta[1]
+```
+**Interpretation**: In this model with 2 predictors, the results of 10-fold cross-validation shows that the average prediction error of this model is 0.261.
+
+```{r}
+m9 <- glm(high_use ~ sex , data = alc, family = "binomial")
+loss_func <- function(class, prob) {
+  n_wrong <- abs(class - prob) > 0.5
+  mean(n_wrong)
+}
+loss_func(class = alc$high_use, prob = alc$probability)
+library(boot)
+cv <- cv.glm(data = alc, cost = loss_func, glmfit = m9, K = 10)
+cv$delta[1]
+```
+**Interpretation**: Finally, in this model with only one predictor, the results of 10-fold cross-validation shows that the average prediction error of this model is 0.298.
+
+#Now let's compare the above 8 models!
+```{r}
+library(pROC)
+```
+It seems I was only hoping to compare the above 8 models! Well, my hopes did not come true and I could not figure out how to draw the ROC curve. By the way, was the idea of this task similar to what I have done with fitting different regression models? Or is drawing ROC curve the right option for evaluation of these models required by the task? I hope at least I got the right idea! However, based on the average prediction errors calculated for each of the 8 models, it seems that including at least 3 predictors helps to reduce the prediction error. Having less than 3 predictors (2 or 1) makes more dramatic increases in prediction error compared to other models with at least 3 predictors.
+
+

@@ -1,0 +1,85 @@
+---
+title: "chapter3"
+author: "Otso Aro"
+output: html_document
+---
+
+# Chapter3 exercises
+
+## 2) Reading joined student alcohol consumption data
+```{r}
+library(dplyr)
+library(ggplot2)
+alc <- read.table(file = "data/alc", header = TRUE)
+str(alc)
+colnames(alc)
+```
+*The student alcohol consumption data is based on the UCI-data of student achievement in seondary education in two Portugese schools. Variables consist of the students sex, grades, absences and health information, for example. The data is combined from two datasets: the dataset that describes students performance in Mathematics and the dataset that describes students performance in the Portugese language. The combined dataset also shows the combined grades of the students in all three years of secondary education. The alcohon consumption is measured with the variable "alc_use" and high alcohol consumption with the variable "high_use". If the alcohol consumption has a value of over 2, is the student considered to use a lot of alcohol and therefore the "high_use" - variable receives a value of "true".*
+
+## 3) Chosen variables for exploration  in regards to their relationship with alcohol consumption
+
+*For my analysis i have taken variables sex, Mothers education, failures, and absences as my indicators of alcohol consumption. I believe that the sex of a person, failures in recent tests and absences from classes offer great explanatory power over a persons consumption of alcohol. I believe that the drinking habits differ among boys and girls. I also believe that misfortune and failures drive people into drinking. Therefore failures in courses might also lead to absences. Together however and separately I still belive they lead into higher alcohol consumption. As my fourth variable I chose the level of the child's Mother's education. This is due to the belief that educated parents warn their children more about alchol and also don't provide a model of heavy drinking that often. Therefore higher education would mean lower levels of alcohol consumption.*
+```{r}
+str(alc$Medu)
+summary(alc$Medu)
+```
+
+## 4) Graphical exploration of the chosen variables
+```{r}
+alc$sex
+alc$failures
+alc$absences
+alc$high_use
+g1 <- ggplot(data = alc, aes(x = high_use, fill = sex))
+g1 + geom_bar()
+g2 <- ggplot(data = alc, aes(x=failures, fill = high_use)) 
+g2 + geom_bar()
+g3 <- ggplot(data = alc, aes(x = absences, fill = high_use))
+g3 + geom_bar()
+g4 <- ggplot(data = alc, aes(x=Medu, fill = high_use)) 
+g4 + geom_bar()
+```
+*From the plots that i have drawn out of the relationships between high use of alcohol and sex, failures, absences and Mothers eduaction. The Medu variable is split into 5 levels from 0 to 4, 0 being no education at all to 4 being higher education. In the education level- plot we can't see any strong correlation between high alcohol consumption and the student's mother's education level. *
+*In the sex plot we can see that men tend to drink more than women. In the dataset there seems to be more women than men, but the men are more heavily represented in the category of more heavy drinkers.*
+
+*In the remaining absences and failures plots the trend tends to be that the more absences or failures a person has, the more he tends to drink. In the absence-variable this can be seen more clearly, but in the failures-variable it is hard to say anything too conclusive, due to the small sample size of the categories. The students tend not to have many failing grades.*
+
+## 5) Logistic regression model of designed variables
+```{r}
+m <- glm(high_use ~ failures + absences + sex + Medu, data = alc, family = "binomial")
+summary(m)
+# compute odds ratios (OR)
+OR <- coef(m) %>% exp
+# compute confidence intervals (CI)
+CI <- confint(m) %>% exp
+# print out the odds ratios with their confidence intervals
+cbind(OR, CI)
+```
+*Above is the results of the logistic regression model from four variables (sex, failures, absences and Mothers education level) and their explanatory power to high alcohol usage. According to the summary of the linear regression model, absences and sex seem to be good explanatory power. Every increase of a unit in failure increases the chances of becoming a high user of alcohol by about 0.45 units. In sex it is clear that we can only have men and women as categories, therefore making it very much more likely for the student to become a high user of alcohol if the subjects are men instead of women.*
+
+*In the 95 % confidence interval levels we can see that the odds ratio to failures are about 1.07 in the lower tail and about 2.35 on the upper tail of the distribution. For absence the digits are 1.05 and 1.15, for sex (Male) it is 1.59  and 4.16. This means that the odds of success for failure (the students have failures and consume high ammount of alcohol) ranges from about 1.06 to about 2.34 on 95 % confidence interval. *
+## 6) Predictive power of the model
+```{r}
+# predict() the probability of high_use
+probabilities <- predict(m, type = "response")
+# add the predicted probabilities to 'alc'
+alc <- mutate(alc, probability = probabilities)
+# use the probabilities to make a prediction of high_use
+alc <- mutate(alc, prediction = probability > 0.5)
+table(high_use = alc$high_use, prediction = alc$prediction) %>% prop.table %>% addmargins
+g <- ggplot(alc, aes(x = probability, y = high_use, col = prediction))
+g + geom_point()
+# define a loss function (average prediction error)
+loss_func <- function(class, prob) {
+  n_wrong <- abs(class - prob) > 0.5
+  mean(n_wrong)
+}
+# compute the average number of wrong predictions in the (training) data
+loss_func(alc$high_use, alc$probability)
+# K-fold cross-validation
+library(boot)
+cv <- cv.glm(data = alc, cost = loss_func, glmfit = m, K = 10)
+# average number of wrong predictions in the cross validation
+cv$delta[1]
+```
+*In the predictions above we can conclude that our model has a 24 % probability of being incorrect. Therefore it can correctly predict the heavy consumption of alcohol in about 76% of the cases. The model predicts too many students not to be heavy drinkers, seeing as it thinks almost 90% of the cases are not heavy consumptors of alcohol, when in fact only 67% are. The model therefore gives too optimistic image of alcohol consumption among students.*
