@@ -1,0 +1,138 @@
+---
+title: "Chapter 5"
+author: "Elizabeth Oakes"
+date: "2 12 2019"
+output: html_document
+---
+# Dimensionality Reduction
+## Exercise 5
+
+### Step 1
+
+First, I load the libraries necessary for this exercise. 
+```{r}
+#load packages and libraries
+library(dplyr)
+library(magrittr)
+library(corrplot)
+library(ggplot2)
+library(tidyr)
+library(GGally)
+library(FactoMineR)
+library(factoextra)
+```
+
+Next, I load the data and summarize it both numerically and graphically.
+```{r}
+#read in data
+human <- read.csv("http://s3.amazonaws.com/assets.datacamp.com/production/course_2218/datasets/human2.txt", header = TRUE, sep = ",")
+
+#summarize the variables
+summary(human)
+
+# visualize the variables
+ggpairs(human)
+```
+
+There are eight variables for 155 countries. Edu2.FM describes the ratio of females to males with a secondary education. Labo.FM describes the ratio of females to males in the workforce. Edu.Exp is a measure of the expected years of education. Life.Exp is projected life expectancy at birth. GNI is the per capita gross national income. Mat.Mor expresses the likelihood of maternal mortality. Ado.Birth is the proportion of teenage mothers. And finally, Parli.F is a measure of female representatives in the parliament.
+
+Looking at the variable pairs' correlations numerically and as scatterplots reveals some expecatable tendencies. Adolescent birth is negatively correlated with years of education and positively correlated with maternal mortality. Female representation in the parliament correlates with a strong female to male ratio in the workforce. Perhaps less expected, there is a negative correlation between life expectancy and a strong female presence in the workforce.
+
+Then, let's look at correlations between variables graphically.
+```{r}
+# compute the correlation matrix and visualize it with corrplot
+cor(human) %>% corrplot(type = "upper")
+```
+
+In this view, we can see the previously mentioned correlations even more clearly, and it is easy to to note that, surprisingly, educational expectations and actualities for females are more negatively correlated with maternal mortality and adolescent birth than higher average incomes as expressed by GNI.
+
+### Step 2
+
+Before standardization, let's try principle component analysis on this same dataset.
+```{r}
+#unstandardized PCA
+pca_human <- prcomp(human)
+pca_human
+```
+
+Numerically, there is a wide range within each of the components. Plotting can show how the first two principle components relate to each country. Below is a biplot of the same PCA.
+```{r}
+#and its biplot
+biplot(pca_human, choices = 1:2, cex = c(0.5, 1), col = c("#f06d0a", "#4002d1"))
+```
+
+Most countries appear to have a similar relationship between the principle components, but there are two tails of exceptions with Kuwait and Sierra Leone being most dissimilar.
+
+### Step 3
+
+Let's standardize the variables and see if that yields a clearer view.
+```{r}
+# standardize the variables
+human_std <- scale(human)
+
+# perform principal component analysis (with the SVD method)
+pca_human2 <- prcomp(human_std)
+
+# draw a biplot of the principal component representation and the original variables
+biplot(pca_human2, choices = 1:2, cex = c(0.5, 1), col = c("#b80202", "#0c5d7a"))
+```
+
+The results of the two analyses look quite different. In the first biplot representing the unscaled data, GNI has a much higher standard deviation that any of the other variables as represented by the length of the arrow. It is strongly negatively correlated with the first principle component on the x axis. There does not appear to be any variable that correlates strongly with the second principle component on the y axis. 
+
+The second biplot representing the scaled data appears much more balanced. It is easier to see correlations between variables. Parli.F and Labo.FM are clearly correlated with each other and with the second principle component. Mat.Mor and Ado.Birth have positive correlation with each other and with the first principle component while GNI, life expectancy, education expectancy and Edu2.FM positively correlate with each other and negatively with the first principle component. GNI displays the same effect as in the first graph, but is now in proportion with the other variables so we can see the relationships between them. The standard deviation appears to be roughly similar for all the variables.
+
+It is also possible to see that countries group by region, at least roughly. Northern Europe has female represenatation in parliament and a high proportion of women in the workplace (high PC2) along with high education expectations, a high proportion of women educated, and high GNI, etc. (low PC1). Many Middle Eastern countries also have a low PC1, however their PC2 is also low. African countries may have women in parliament and the workplace (high PC 2), but they also show a tendency towards high maternal mortality and adolescent birth (high PC1).
+
+### Step 4
+
+Based on the biplot drawn after PCA on the standardized human data, it appears that PC1, the x axis, shows the near diametrical opposition between wealth and education on the one side and poor reproductive health outcomes for women on the other side. This could be summed up as material advantage/disadvantage particularly in relation to gender. PC2, the y axis, might be summed up as representational advantage/disadvantage in relation to gender. 
+
+Grim tea.
+
+### Step 5
+
+For the last portion of the analysis, I will move on to look at some actual tea. First I load the tea dataset from the FactoMineR package and show the structure and dimensions of the data.
+```{r}
+#load tea
+data(tea)
+
+#explore
+str(tea)
+dim(tea)
+```
+
+300 observations of 36 variable related to when, how, and why people take their tea. Also, their feelings about tea drinking.
+
+It's quite big, so I will make a smaller dataset with the columns representing type of tea (Tea), additives such as milk or lemon (How), sugar or none (sugar), bag or loose leaf (how), location of tea drinking (where), and price (price). I print a set of bar graphs representing this data.
+```{r}
+#column names to keep in the dataset
+keep_columns <- c("Tea", "How", "how", "sugar", "where", "price")
+
+#select the 'keep_columns' to create a new dataset
+tea_time <- select(tea, one_of(keep_columns))
+
+#make a bar plot of this smaller data set
+gather(tea_time) %>% ggplot(aes(value)) + facet_wrap("key", scales = "free") + geom_bar() + theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
+```
+ 
+Last, I do a multiple correspondence analysis on this smaller dataset. I summarize the model and plot it.
+```{r}
+# multiple correspondence analysis
+mca <- MCA(tea_time, graph = FALSE)
+
+# summary of the model
+summary(mca)
+
+# visualize MCA
+plot(mca, invisible=c("ind"), habillage= "quali")
+```
+
+From the summary we can see that the multiple correspondence analysis reduces the data to three dimensions.
+
+Plotting the first two dimensions shows how instances of the different observations for each variable contribute to the overall makeup of the dimensions. We can also view it in bar plot form.
+```{r}
+# Contributions of rows to dimension 1
+fviz_contrib(mca, choice = "var", axes = 1, top = 15)
+# Contributions of rows to dimension 2
+fviz_contrib(mca, choice = "var", axes = 2, top = 15)
+```
