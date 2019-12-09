@@ -1,0 +1,190 @@
+---
+title: "Chapter 6"
+author: "Elizabeth Oakes"
+date: "9 12 2019"
+output: html_document
+---
+## Longitudinal Data
+
+This week we have two datasets. The first, ratsL, measures the effect of two diets on the weights two sets of rats plus a control group. The second, bprsL, measures the effect two treatments have on the bprs score, a measure of schizophrenic symptoms, on two sets of men. First I will read in and check both data sets, then I will analyze ratsL along the lines of Ch. 8 in the textbook and after bprsL along the lines of Ch. 9.
+```{r}
+#load libraries
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(lme4)
+
+#load datasets
+ratsL <- read.csv("ratsL.csv", header = T, sep = ",")
+bprsL <- read.csv("bprsL.csv", header = T, sep = ",")
+
+#check datasets
+glimpse(ratsL)
+glimpse(bprsL)
+
+#refactor if necessary
+ratsL$ID <- factor(ratsL$ID)
+ratsL$Group <- factor(ratsL$Group)
+bprsL$treatment <- factor(bprsL$treatment)
+bprsL$subject <- factor(bprsL$subject)
+
+```
+
+Let's start by having a look at the ratsL data
+```{r}
+dim(ratsL)
+str(ratsL)
+summary(ratsL)
+```
+
+The data includes 176 observations of 6 variables. ID marks each of 16 individual rats divided into 3 Groups, or diet plans. Group 1, the control, contains 8 individuals. Groups 2 and 3 each contain 4 individuals on 2 different diet plans. WD is a weighing day, which happened approximately once a week for a total of 11 weighings. Weight for each rat on each weighing is recorded in grams. Time is a variable that transforms WD into an integer for easier plotting. stdWeight is the standardized weight.
+
+I will plot individual response profiles to see how each rat's weight fluctuated under the different diet plans.
+```{r}
+# Plot the RATSL data
+ggplot(ratsL, aes(x = Time, y = Weight, group = ID)) +
+  geom_line(aes(linetype = Group)) +
+  scale_x_continuous(name = "Time (days)", breaks = seq(0, 60, 10)) +
+  scale_y_continuous(name = "Weight (grams)") +
+  theme(legend.position = "top")
+```
+
+Poor group 2 and 3, they got fat, but maybe that's a good thing if you are a rat. Each group appears to have an atypical individual, especially group 2 where one rat started out weighing over 100 grams more than the other rats in the group. For groups 2 and 3, all individuals follow the trend of weight gain, and tracking generally applies (those heavier in the beginning are heavier at the end). Rats in group 1 maintained their weight with slight fluctuations. The rats in this group all started over 100 grams lighter than the lightest rat of the other two groups.
+
+This view is quite easy to read, but I will also standardize the data and plot it again, which can show tracking more clearly.
+```{r}
+#Standardise the variable Weight
+ratsL <- ratsL %>%
+  group_by(WD) %>%
+  mutate(stdWeight = (Weight - mean(Weight))/sd(Weight) ) %>%
+  ungroup()
+
+# Glimpse the data
+glimpse(ratsL)
+
+# Plot again with the standardised Weight
+ggplot(ratsL, aes(x = Time, y = stdWeight, group = ID)) +
+  geom_line(aes(linetype = Group)) +
+  scale_x_continuous(name = "Time (days)", breaks = seq(0, 60, 10)) +
+  scale_y_continuous(name = "standardized Weight") +
+  theme(legend.position = "top")
+
+```
+
+Interestingly, when weight is standardized no individuals seem to show significant change.
+
+It's also possible to view individual box plots for each group to view individual variation more clearly. I will plot that with the unstandardized data.
+```{r}
+#boxplot comparison by group
+ggplot(ratsL, aes(x = Time, y = Weight, linetype = ID)) +
+  geom_line() +
+  scale_linetype_manual(values = rep(1:10, times=4)) +
+  facet_grid(. ~ Group, labeller = label_both) +
+  theme(legend.position = "none") + 
+  scale_y_continuous(limits = c(min(ratsL$Weight), max(ratsL$Weight)))
+```
+
+In this view we can see the dramatic outlier in group 2 and the slight outliers in groups 1 and 3 quite clearly.
+
+Now I will plot the average weight of each group over time with bars to show standard deviation.
+```{r}
+# Number of Times
+n <- ratsL$Time %>% unique() %>% length()
+
+# Summary data with mean and standard error of Weight by Group and Time 
+ratsS <- ratsL %>%
+  group_by(Group, Time) %>%
+  summarise( mean = mean(Weight), se = (sd(Weight)/sqrt(n)) ) %>%
+  ungroup()
+
+# Plot the mean profiles
+ggplot(ratsS, aes(x = Time, y = mean, linetype = Group, shape = Group)) +
+  geom_line() +
+  scale_linetype_manual(values = c(1,2,3)) +
+  geom_point(size=3) +
+  scale_shape_manual(values = c(1,2,3)) +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se, linetype="1"), width=0.3) +
+  theme(legend.position = c(0.9,0.5)) +
+  scale_y_continuous(name = "mean(Weight) +/- se(Weight)")
+```
+
+The standard deviation of group 2 is highest while group three has very little. It may be due to that dramatic outlier in group 2. I will create a mean summary measure of Weight for each group before I consider cutting the outlier for further analysis.
+```{r}
+# Create summary data by group and ID with mean as the summary variable (ignoring baseline Time 1).
+ratsL8S <- ratsL %>%
+  filter(Time > 1) %>%
+  group_by(Group, ID) %>%
+  summarise( mean=mean(Weight) ) %>%
+  ungroup()
+
+# Draw a boxplot of the mean versus treatment
+ggplot(ratsL8S, aes(x = Group, y = mean)) +
+  geom_boxplot() +
+  stat_summary(fun.y = "mean", geom = "point", shape=23, size=4, fill = "blue") +
+  scale_y_continuous(name = "mean(Weight) without day 1")
+```
+
+In this view, it's easy to see that every group has an outlier. We can also see that the mean summary measure (Weight), has substantial skew in groups 2 and 3. Yet the diet of groups 2 and 3 do seem to result in significantly different weights between each other and with the control group 1.
+
+Lets move to an analysis of the second dataset, bprsL, corresponding to the analysis in Ch. 9 of the book. I will start with several summarizations of the bprsL data.
+```{r}
+dim(bprsL)
+str(bprsL)
+summary(bprsL)
+```
+
+For this dataset, 40 male subjects were rated on the brief psychiatric rating scale (BPRS), which assessses the level of 18 symptoms of schizophrenia, such as hostility, suspiciousness, hallucinations, etc. They were randomly assigned to one of two treatment groups and each subject was rated on the BPRS each week for eight weeks. Subject records individual men, and treatment the treatment group to which they belong. Weeks notes at which week the measurements were take, and week transforms that into easily plotable integer form. Bprs records each subject's score on the scale for the initial measurement and each of the following eight weeks. 
+
+I will visualize the bprsL data with a line plot similar to the initial visualization of the ratsL data. First for individual subjects, then a plot for averages.
+```{r}
+#plot of bprs over week by subject and treatment
+ggplot(bprsL, aes(x = week, y = bprs, linetype = subject)) +
+  geom_line() +
+  scale_linetype_manual(values = rep(1:10, times=4)) +
+  facet_grid(. ~ treatment, labeller = label_both) +
+  theme(legend.position = "none") + 
+  scale_y_continuous(limits = c(min(bprsL$bprs), max(bprsL$bprs)))
+
+# Number of weeks, baseline (week 0) included
+n <- bprsL$week %>% unique() %>% length()
+
+# Summary data with mean and standard error of bprs by treatment and week 
+bprsS <- bprsL %>%
+  group_by(treatment, week) %>%
+  summarise( mean = mean(bprs), se = (sd(bprs)/sqrt(n)) ) %>%
+  ungroup()
+
+# Plot the mean profiles
+ggplot(bprsS, aes(x = week, y = mean, linetype = treatment, shape = treatment)) +
+  geom_line() +
+  scale_linetype_manual(values = c(1,2)) +
+  geom_point(size=3) +
+  scale_shape_manual(values = c(1,2)) +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se, linetype="1"), width=0.3) +
+  theme(legend.position = c(0.8,0.8)) +
+  scale_y_continuous(name = "mean(bprs) +/- se(bprs)")
+```
+
+It is easy to see that the bprs score is not independent but related to both subject and time, as expected.
+
+Linear regression models are not appropriate for this kind of data where independence of each bprs measurement over time should not be assumed. However, I will first do a basic linear regression model for comparison with later, more appropriate, models.
+```{r}
+#creating a regression model for bprsL
+BPRS_reg <- lm(bprs ~ week + treatment, data = bprsL)
+summary(BPRS_reg)
+```
+
+From the p-value, I assume this is nonsense. Another possibility is a random intercept model, which allows for relatedness of bprs measurement within subject. However, it disregards time, so it is not yet an appropriate choice. I will test it out on the data nevertheless.
+```{r}
+BPRS_ref <- lmer(bprs ~ week + treatment + (1 | subject), data = bprsL, REML = FALSE)
+summary(BPRS_ref)
+```
+
+Finally, let's try a model more that can also take into account relatedness of bprs measurement within subject and across time for each subject, random intercept and random slope model.
+```{r}
+#random intercept and random slope model for bprsL
+BPRS_ref2 <- lmer(bprs ~ week * treatment + (week | subject), data = bprsL, REML = FALSE)
+summary(BPRS_ref2)
+```
+
+How does the fitted model correspond to the observed data? We could compare with a plot much like figure 9.4 in the book, but the code isn't working for me and I've already poured 15 hours into this one assignment. So let's call it good.
